@@ -12,6 +12,7 @@ import {
   ChevronUp,
   AlertCircle,
 } from "lucide-react";
+import { Analytics } from "@vercel/analytics/react";
 
 /* ---------------------------------------------------------------------- */
 /* Design tokens (ABAY's house design language)                            */
@@ -812,6 +813,7 @@ export default function App() {
           </div>
         )}
       </div>
+      <Analytics />
     </div>
   );
 }
