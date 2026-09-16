@@ -133,17 +133,32 @@ function buildAnalyzeUserPrompt(message, extraContext, relevantKb) {
 }
 
 async function callClaude({ system, prompt, maxTokens }) {
-  const response = await fetch("/api/claude", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ system, prompt, maxTokens: maxTokens || 1000 }),
-  });
+  let response;
+  try {
+    response = await fetch("/api/claude", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ system, prompt, maxTokens: maxTokens || 1000 }),
+    });
+  } catch (networkErr) {
+    // The request never reached our server at all — this is the one case that
+    // actually means "bad internet", so it's the only place we say that.
+    const err = new Error("Can't reach the server — check your internet connection and try again.");
+    err.code = "network";
+    throw err;
+  }
+
   const data = await response.json().catch(() => ({}));
+
   if (!response.ok) {
-    throw new Error(data.error || `Request failed with status ${response.status}`);
+    const err = new Error(data.error || `Request failed (${response.status}). Try again.`);
+    err.code = data.code || "unknown";
+    throw err;
   }
   if (!data.text) {
-    throw new Error("Empty response");
+    const err = new Error("Got an empty response. Try again.");
+    err.code = "empty";
+    throw err;
   }
   return data.text;
 }
@@ -369,7 +384,7 @@ export default function App() {
       updateHistory([entry, ...history].slice(0, 30));
     } catch (err) {
       console.error(err);
-      setAnalyzeError("Couldn't reach the assistant. Check your connection and try again.");
+      setAnalyzeError(err.message || "Something went wrong. Try again.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -384,7 +399,7 @@ export default function App() {
       setDraftReply(revised);
     } catch (err) {
       console.error(err);
-      setToneError("Couldn't update the tone. Try again.");
+      setToneError(err.message || "Something went wrong. Try again.");
     } finally {
       setToneLoading(null);
     }
